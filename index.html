@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CCF Meter — 胸骨圧迫フラクション測定</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg2: #f5f5f3;
+      --bg3: #ebebea;
+      --text: #1a1a19;
+      --text2: #6b6b68;
+      --text3: #9e9e9a;
+      --border: rgba(0,0,0,0.12);
+      --border2: rgba(0,0,0,0.22);
+      --radius: 8px;
+      --radius-lg: 12px;
+      --green: #1D9E75;
+      --amber: #BA7517;
+      --red: #E24B4A;
+      --blue: #185FA5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1b;
+        --bg2: #252524;
+        --bg3: #2e2e2c;
+        --text: #f0efea;
+        --text2: #a0a09b;
+        --text3: #6b6b68;
+        --border: rgba(255,255,255,0.10);
+        --border2: rgba(255,255,255,0.20);
+      }
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 16px 16px 40px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .header h1 span {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text2);
+      margin-left: 6px;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 14px;
+      height: 20px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 7px;
+      flex-shrink: 0;
+    }
+    .dot-idle   { background: var(--text3); }
+    .dot-comp   { background: var(--green); animation: pulse 1s infinite; }
+    .dot-pause  { background: var(--amber); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .clock {
+      margin-left: auto;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+
+    /* CCF big number */
+    .ccf-block {
+      text-align: center;
+      margin: 4px 0 12px;
+    }
+    .ccf-num {
+      font-size: 72px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -2px;
+      transition: color 0.3s;
+    }
+    .ccf-unit {
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--text2);
+      margin-left: 4px;
+    }
+    .ccf-sub {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+
+    /* Progress bar */
+    .bar-wrap {
+      height: 10px;
+      background: var(--bg2);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 5px;
+      border: 0.5px solid var(--border);
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.3s, background 0.3s;
+      width: 0%;
+      background: var(--blue);
+    }
+    .threshold-hint {
+      font-size: 11px;
+      color: var(--text3);
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    /* Metric cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .metric {
+      background: var(--bg2);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+    }
+    .metric .m-label {
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 3px;
+    }
+    .metric .m-val {
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric .m-unit {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .btn {
+      flex: 1;
+      padding: 15px 10px;
+      border-radius: var(--radius-lg);
+      border: 0.5px solid var(--border2);
+      background: var(--bg);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.1s, transform 0.08s, opacity 0.15s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+    .btn-start {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+      font-size: 16px;
+    }
+    .btn-start:active { background: #0C447C; }
+
+    .btn-stop {
+      background: var(--bg2);
+      border-color: var(--border2);
+      font-size: 16px;
+    }
+
+    .btn-danger { color: var(--red); }
+
+    .btn-pause-active {
+      background: #FAEEDA;
+      color: #633806;
+      border-color: #854F0B;
+    }
+    @media (prefers-color-scheme: dark) {
+      .btn-pause-active { background: #3a2200; color: #FAC775; border-color: #BA7517; }
+    }
+
+    /* Divider & section labels */
+    .divider { height: 0.5px; background: var(--border); margin: 14px 0; }
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text3);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .pause-reason-label {
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 7px;
+    }
+
+    /* Event log */
+    .log {
+      max-height: 130px;
+      overflow-y: auto;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg2);
+    }
+    .log-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 13px;
+    }
+    .log-row:last-child { border-bottom: none; }
+    .log-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 500;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+    .tag-comp    { background: #dbeeff; color: #0C447C; }
+    .tag-vent    { background: #d6efc0; color: #27500A; }
+    .tag-rhythm  { background: #e8e6ff; color: #3C3489; }
+    .tag-unknown { background: #e5e4de; color: #444441; }
+    .tag-pause   { background: #fae5c0; color: #633806; }
+    @media (prefers-color-scheme: dark) {
+      .tag-comp    { background: #0C447C; color: #B5D4F4; }
+      .tag-vent    { background: #27500A; color: #C0DD97; }
+      .tag-rhythm  { background: #3C3489; color: #CECBF6; }
+      .tag-unknown { background: #444441; color: #D3D1C7; }
+      .tag-pause   { background: #633806; color: #FAC775; }
+    }
+    .log-time { font-size: 11px; color: var(--text3); font-variant-numeric: tabular-nums; margin-left: 6px; }
+    .empty-log {
+      padding: 16px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text3);
+    }
+
+    /* Chart */
+    .chart-wrap { position: relative; width: 100%; height: 180px; margin-bottom: 12px; }
+
+    /* Report */
+    .report-box {
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+      font-size: 12px;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      color: var(--text2);
+      white-space: pre;
+      overflow-x: auto;
+      line-height: 1.7;
+      margin-bottom: 8px;
+    }
+    .copy-msg {
+      font-size: 12px;
+      color: var(--green);
+      text-align: center;
+      height: 18px;
+      margin-bottom: 4px;
+    }
+    .btn-copy {
+      font-size: 13px;
+      padding: 10px;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1>CCF Meter <span>胸骨圧迫フラクション</span></h1>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <span class="status-dot dot-idle" id="dot"></span>
+    <span id="status-text">待機中</span>
+    <span class="clock" id="clock">00:00</span>
+  </div>
+
+  <!-- CCF big number -->
+  <div class="ccf-block">
+    <div class="ccf-num" id="ccf-val" style="color: var(--blue);">—<span class="ccf-unit"></span></div>
+    <div class="ccf-sub">Chest Compression Fraction (%)</div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="bar-wrap"><div class="bar-fill" id="bar"></div></div>
+  <div class="threshold-hint">80%以上: 良好 &nbsp;|&nbsp; 60–79%: 要改善 &nbsp;|&nbsp; 60%未満: 不十分</div>
+
+  <!-- Metrics -->
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="m-label">圧迫時間</div>
+      <div><span class="m-val" id="comp-time">0</span><span class="m-unit"> s</span></div>
+    </div>
+    <div class="metric">
+      <div class="m-label">中断時間</div>
+      <div><span class="m-val" id="pause-time">0</span><span class="m-unit"> s</span></div>
+    </div>
+    <div class="metric">
+      <div class="m-label">経過時間</div>
+      <div><span class="m-val" id="total-time">0</span><span class="m-unit"> s</span></div>
+    </div>
+  </div>
+
+  <!-- Main controls -->
+  <div class="btn-row">
+    <button class="btn btn-start" id="main-btn" onclick="handleMain()">開始</button>
+    <button class="btn" id="toggle-btn" onclick="handleToggle()" disabled>圧迫開始</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-danger" onclick="handleReset()">リセット</button>
+  </div>
+
+  <!-- Pause reason buttons -->
+  <div class="divider"></div>
+  <div class="pause-reason-label">中断理由（押すと中断開始 / もう一度または「開始」で再開）</div>
+  <div class="btn-row">
+    <button class="btn" id="btn-vent"    onclick="handlePauseReason('vent','換気')"      disabled>換気</button>
+    <button class="btn" id="btn-rhythm"  onclick="handlePauseReason('rhythm','波形確認')" disabled>波形確認</button>
+    <button class="btn" id="btn-unknown" onclick="handlePauseReason('unknown','不明な中断')" disabled>不明な中断</button>
+  </div>
+
+  <!-- Chart -->
+  <div class="divider"></div>
+  <div class="section-label">CCF 時系列</div>
+  <div class="chart-wrap">
+    <canvas id="ccfChart" role="img" aria-label="CCFの時系列推移グラフ">CCF時系列データ</canvas>
+  </div>
+
+  <!-- Event log -->
+  <div class="divider"></div>
+  <div class="section-label">イベントログ</div>
+  <div class="log" id="log"><div class="empty-log">ログはここに表示されます</div></div>
+
+  <!-- Report -->
+  <div class="divider"></div>
+  <div class="section-label">レポート</div>
+  <div class="report-box" id="report-box">計測を開始するとレポートが生成されます</div>
+  <div class="copy-msg" id="copy-msg"></div>
+  <div class="btn-row">
+    <button class="btn btn-copy" onclick="copyReport()">テキストをコピー</button>
+  </div>
+
+  <div class="footer">CCF Meter — EMS用 胸骨圧迫フラクション測定ツール</div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────
+  let state = 'idle';
+  let startTime = null;
+  let totalComp = 0, totalPause = 0;
+  let currentSegmentStart = null;
+  let isCompressing = false;
+  let activePauseReason = null;
+  let timerInterval = null, chartInterval = null;
+  let logs = [];
+  let chartLabels = [], chartData = [];
+  let myChart = null;
+
+  const PAUSE_BTNS = {
+    vent:    { id: 'btn-vent',    label: '換気',      tagClass: 'tag-vent'    },
+    rhythm:  { id: 'btn-rhythm',  label: '波形確認',   tagClass: 'tag-rhythm'  },
+    unknown: { id: 'btn-unknown', label: '不明な中断', tagClass: 'tag-unknown' }
+  };
+
+  // ── Helpers ────────────────────────────────────────
+  function fmt(s) {
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+  function fmtS(s) { return Math.round(s); }
+  function now()   { return Date.now() / 1000; }
+  function ccfColor(v) {
+    return v >= 80 ? '#1D9E75' : v >= 60 ? '#BA7517' : '#E24B4A';
+  }
+  function tagLabel(type) {
+    return { comp:'圧迫', vent:'換気', rhythm:'波形確認', unknown:'不明', pause:'中断' }[type] || '中断';
+  }
+  function tagClass(type) {
+    return { comp:'tag-comp', vent:'tag-vent', rhythm:'tag-rhythm', unknown:'tag-unknown' }[type] || 'tag-pause';
+  }
+
+  function setPauseBtnsDisabled(disabled) {
+    Object.values(PAUSE_BTNS).forEach(b => {
+      document.getElementById(b.id).disabled = disabled;
+    });
+  }
+  function clearPauseBtnActive() {
+    Object.values(PAUSE_BTNS).forEach(b => {
+      const el = document.getElementById(b.id);
+      el.classList.remove('btn-pause-active');
+      el.textContent = b.label;
+    });
+    activePauseReason = null;
+  }
+
+  // ── Pause reason handler ───────────────────────────
+  function handlePauseReason(key, label) {
+    if (state !== 'running') return;
+    const t = now(), el = t - startTime;
+
+    if (activePauseReason === key) {
+      // Same button → end pause, resume compression
+      totalPause += t - currentSegmentStart;
+      addLog(key, label + ' ' + fmtS(t - currentSegmentStart) + 's', el);
+      clearPauseBtnActive();
+      currentSegmentStart = t;
+      isCompressing = true;
+      document.getElementById('toggle-btn').textContent = '圧迫中断';
+      document.getElementById('dot').className = 'status-dot dot-comp';
+      document.getElementById('status-text').textContent = '圧迫中';
+    } else {
+      // Finish current segment
+      if (isCompressing && currentSegmentStart) {
+        totalComp += t - currentSegmentStart;
+        addLog('comp', '圧迫 ' + fmtS(t - currentSegmentStart) + 's', el);
+      } else if (activePauseReason && activePauseReason !== key) {
+        const prevLabel = PAUSE_BTNS[activePauseReason].label;
+        totalPause += t - currentSegmentStart;
+        addLog(activePauseReason, prevLabel + ' ' + fmtS(t - currentSegmentStart) + 's', el);
+      } else if (!isCompressing && currentSegmentStart) {
+        totalPause += t - currentSegmentStart;
+      }
+      // Start new pause reason
+      clearPauseBtnActive();
+      currentSegmentStart = t;
+      isCompressing = false;
+      activePauseReason = key;
+      const btn = document.getElementById(PAUSE_BTNS[key].id);
+      btn.classList.add('btn-pause-active');
+      btn.textContent = label + ' 中';
+      document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('dot').className = 'status-dot dot-pause';
+      document.getElementById('status-text').textContent = label + ' 中';
+    }
+  }
+
+  // ── Main button (開始 / 停止) ──────────────────────
+  function handleMain() {
+    if (state === 'idle') {
+      // Start
+      state = 'running';
+      startTime = now();
+      currentSegmentStart = now();
+      isCompressing = false;
+      document.getElementById('main-btn').textContent = '停止';
+      document.getElementById('main-btn').className = 'btn btn-stop';
+      document.getElementById('toggle-btn').disabled = false;
+      document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('dot').className = 'status-dot dot-pause';
+      document.getElementById('status-text').textContent = '中断中';
+      document.getElementById('ccf-val').innerHTML = '0<span class="ccf-unit"> %</span>';
+      document.getElementById('ccf-val').style.color = 'var(--blue)';
+      setPauseBtnsDisabled(false);
+      timerInterval  = setInterval(updateUI, 200);
+      chartInterval  = setInterval(updateChart, 2000);
+    } else {
+      // Stop — if pause reason active, it resumes compression (same as pressing active pause btn)
+      if (activePauseReason) {
+        handlePauseReason(activePauseReason, PAUSE_BTNS[activePauseReason].label);
+        return;
+      }
+      // Otherwise stop session
+      const t = now(), el = t - startTime;
+      if (isCompressing && currentSegmentStart) {
+        totalComp += t - currentSegmentStart;
+        addLog('comp', '圧迫終了', el);
+      } else if (currentSegmentStart) {
+        totalPause += t - currentSegmentStart;
+        addLog('pause', '中断終了', el);
+      }
+      currentSegmentStart = null;
+      state = 'idle'; isCompressing = false;
+      clearInterval(timerInterval); clearInterval(chartInterval);
+      updateUI();
+      document.getElementById('main-btn').textContent = '開始';
+      document.getElementById('main-btn').className = 'btn btn-start';
+      document.getElementById('toggle-btn').disabled = true;
+      document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('dot').className = 'status-dot dot-idle';
+      document.getElementById('status-text').textContent = '停止済み';
+      setPauseBtnsDisabled(true);
+    }
+  }
+
+  // ── Toggle compression ─────────────────────────────
+  function handleToggle() {
+    if (state !== 'running') return;
+    const t = now(), el = t - startTime;
+    if (!isCompressing) {
+      // Resume compression (clear any active pause reason)
+      if (activePauseReason) {
+        totalPause += t - currentSegmentStart;
+        addLog(activePauseReason, PAUSE_BTNS[activePauseReason].label + ' ' + fmtS(t - currentSegmentStart) + 's', el);
+        clearPauseBtnActive();
+      } else if (currentSegmentStart) {
+        totalPause += t - currentSegmentStart;
+        addLog('pause', '中断 ' + fmtS(t - currentSegmentStart) + 's', el);
+      }
+      currentSegmentStart = t; isCompressing = true;
+      document.getElementById('toggle-btn').textContent = '圧迫中断';
+      document.getElementById('dot').className = 'status-dot dot-comp';
+      document.getElementById('status-text').textContent = '圧迫中';
+    } else {
+      // Pause compression
+      totalComp += t - currentSegmentStart;
+      addLog('comp', '圧迫 ' + fmtS(t - currentSegmentStart) + 's', el);
+      currentSegmentStart = t; isCompressing = false;
+      document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('dot').className = 'status-dot dot-pause';
+      document.getElementById('status-text').textContent = '中断中';
+    }
+  }
+
+  // ── Reset ──────────────────────────────────────────
+  function handleReset() {
+    clearInterval(timerInterval); clearInterval(chartInterval);
+    state = 'idle'; startTime = null;
+    totalComp = 0; totalPause = 0;
+    currentSegmentStart = null; isCompressing = false;
+    activePauseReason = null; logs = [];
+    chartLabels.length = 0; chartData.length = 0;
+    if (myChart) myChart.update('none');
+    clearPauseBtnActive();
+    setPauseBtnsDisabled(true);
+    document.getElementById('main-btn').textContent = '開始';
+    document.getElementById('main-btn').className = 'btn btn-start';
+    document.getElementById('toggle-btn').disabled = true;
+    document.getElementById('toggle-btn').textContent = '圧迫開始';
+    document.getElementById('ccf-val').innerHTML = '—<span class="ccf-unit"></span>';
+    document.getElementById('ccf-val').style.color = 'var(--blue)';
+    document.getElementById('bar').style.width = '0%';
+    document.getElementById('bar').style.background = 'var(--blue)';
+    document.getElementById('comp-time').textContent = '0';
+    document.getElementById('pause-time').textContent = '0';
+    document.getElementById('total-time').textContent = '0';
+    document.getElementById('clock').textContent = '00:00';
+    document.getElementById('dot').className = 'status-dot dot-idle';
+    document.getElementById('status-text').textContent = '待機中';
+    document.getElementById('log').innerHTML = '<div class="empty-log">ログはここに表示されます</div>';
+    document.getElementById('report-box').textContent = '計測を開始するとレポートが生成されます';
+  }
+
+  // ── UI update ─────────────────────────────────────
+  function updateUI() {
+    const t    = state === 'idle' ? 0 : (now() - startTime);
+    const comp = totalComp  + (isCompressing  && currentSegmentStart ? now() - currentSegmentStart : 0);
+    const pause= totalPause + (!isCompressing && currentSegmentStart ? now() - currentSegmentStart : 0);
+    const ccf  = t > 0 ? Math.round((comp / t) * 100) : 0;
+
+    document.getElementById('total-time').textContent = fmtS(t);
+    document.getElementById('comp-time').textContent  = fmtS(comp);
+    document.getElementById('pause-time').textContent = fmtS(pause);
+    document.getElementById('clock').textContent      = fmt(t);
+
+    if (state !== 'idle') {
+      const color = ccfColor(ccf);
+      document.getElementById('ccf-val').innerHTML = ccf + '<span class="ccf-unit"> %</span>';
+      document.getElementById('ccf-val').style.color = color;
+      document.getElementById('bar').style.width      = ccf + '%';
+      document.getElementById('bar').style.background = color;
+      updateReport(t, comp, pause, ccf);
+    }
+  }
+
+  // ── Chart update ───────────────────────────────────
+  function updateChart() {
+    if (!myChart || state === 'idle') return;
+    const t    = now() - startTime;
+    const comp = totalComp + (isCompressing && currentSegmentStart ? now() - currentSegmentStart : 0);
+    const ccf  = t > 0 ? Math.round((comp / t) * 100) : 0;
+    chartLabels.push(fmt(t));
+    chartData.push(ccf);
+    if (chartLabels.length > 120) { chartLabels.shift(); chartData.shift(); }
+    myChart.update('none');
+  }
+
+  // ── Log ───────────────────────────────────────────
+  function addLog(type, label, sec) {
+    logs.unshift({ type, label, sec });
+    const logEl = document.getElementById('log');
+    logEl.innerHTML = logs.slice(0, 30).map(l =>
+      `<div class="log-row">
+        <span style="color:var(--text)">${l.label}</span>
+        <div style="display:flex;align-items:center;">
+          <span class="log-tag ${tagClass(l.type)}">${tagLabel(l.type)}</span>
+          <span class="log-time">${fmt(l.sec)}</span>
+        </div>
+      </div>`
+    ).join('');
+  }
+
+  // ── Report ────────────────────────────────────────
+  function updateReport(t, comp, pause, ccf) {
+    const now_str = new Date().toLocaleString('ja-JP');
+    const lines = [
+      '=== CPR セッションレポート ===',
+      '記録日時　: ' + now_str,
+      '経過時間　: ' + fmt(t),
+      '圧迫時間　: ' + fmtS(comp) + ' 秒',
+      '中断時間　: ' + fmtS(pause) + ' 秒',
+      'CCF　　　: ' + ccf + ' %  ' + (ccf >= 80 ? '[良好]' : ccf >= 60 ? '[要改善]' : '[不十分]'),
+      '',
+      '--- イベントログ ---',
+      ...logs.slice().reverse().map(l => fmt(l.sec) + '  ' + tagLabel(l.type) + '  ' + l.label)
+    ];
+    document.getElementById('report-box').textContent = lines.join('\n');
+  }
+
+  function copyReport() {
+    const text = document.getElementById('report-box').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const el = document.getElementById('copy-msg');
+      el.textContent = 'コピーしました';
+      setTimeout(() => { el.textContent = ''; }, 2000);
+    }).catch(() => {
+      const el = document.getElementById('copy-msg');
+      el.textContent = 'コピーできませんでした（手動でコピーしてください）';
+      setTimeout(() => { el.textContent = ''; }, 3000);
+    });
+  }
+
+  // ── Chart init ────────────────────────────────────
+  function initChart() {
+    const isDark   = matchMedia('(prefers-color-scheme: dark)').matches;
+    const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+    const textColor = isDark ? '#6b6b68' : '#9e9e9a';
+    const ctx = document.getElementById('ccfChart').getContext('2d');
+
+    Chart.register({
+      id: 'zones',
+      beforeDraw(chart) {
+        const { ctx: c, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const y80 = scales.y.getPixelForValue(80);
+        const y60 = scales.y.getPixelForValue(60);
+        c.save();
+        c.fillStyle = 'rgba(29,158,117,0.07)';
+        c.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, y80 - chartArea.top);
+        c.fillStyle = 'rgba(186,117,23,0.07)';
+        c.fillRect(chartArea.left, y80, chartArea.right - chartArea.left, y60 - y80);
+        c.fillStyle = 'rgba(226,75,74,0.07)';
+        c.fillRect(chartArea.left, y60, chartArea.right - chartArea.left, chartArea.bottom - y60);
+        c.strokeStyle = 'rgba(29,158,117,0.35)'; c.setLineDash([4,3]); c.lineWidth = 1;
+        c.beginPath(); c.moveTo(chartArea.left, y80); c.lineTo(chartArea.right, y80); c.stroke();
+        c.strokeStyle = 'rgba(186,117,23,0.35)';
+        c.beginPath(); c.moveTo(chartArea.left, y60); c.lineTo(chartArea.right, y60); c.stroke();
+        c.restore();
+      }
+    });
+
+    myChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          data: chartData,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+          segment: { borderColor: ctx => ccfColor(ctx.p1.parsed.y) }
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => 'CCF: ' + Math.round(c.parsed.y) + '%' } }
+        },
+        scales: {
+          x: {
+            ticks: { color: textColor, font: { size: 11 }, maxTicksLimit: 6, autoSkip: true },
+            grid:  { color: gridColor }
+          },
+          y: {
+            min: 0, max: 100,
+            ticks: { color: textColor, font: { size: 11 }, callback: v => v + '%' },
+            grid:  { color: gridColor }
+          }
+        }
+      }
+    });
+  }
+
+  initChart();
+</script>
+</body>
+</html>
