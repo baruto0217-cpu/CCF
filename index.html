@@ -215,8 +215,15 @@
       color: #633806;
       border-color: #854F0B;
     }
+    .btn-green {
+      background: #1D9E75;
+      color: #fff;
+      border-color: #0F6E56;
+    }
+    .btn-green:active { background: #0F6E56; }
     @media (prefers-color-scheme: dark) {
       .btn-pause-active { background: #3a2200; color: #FAC775; border-color: #BA7517; }
+      .btn-green { background: #0F6E56; border-color: #085041; }
     }
 
     /* Divider & section labels */
@@ -447,7 +454,7 @@
   function clearPauseBtnActive() {
     Object.values(PAUSE_BTNS).forEach(b => {
       const el = document.getElementById(b.id);
-      el.classList.remove('btn-pause-active');
+      el.classList.remove('btn-pause-active', 'btn-red');
       el.textContent = b.label;
     });
     activePauseReason = null;
@@ -466,6 +473,7 @@
       currentSegmentStart = t;
       isCompressing = true;
       document.getElementById('toggle-btn').textContent = '圧迫中断';
+      document.getElementById('toggle-btn').classList.remove('btn-green');
       document.getElementById('dot').className = 'status-dot dot-comp';
       document.getElementById('status-text').textContent = '圧迫中';
     } else {
@@ -489,6 +497,7 @@
       btn.classList.add('btn-pause-active');
       btn.textContent = label + ' 中';
       document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('toggle-btn').classList.add('btn-green');
       document.getElementById('dot').className = 'status-dot dot-pause';
       document.getElementById('status-text').textContent = label + ' 中';
     }
@@ -520,6 +529,7 @@
       document.getElementById('main-btn').className = 'btn btn-stop';
       document.getElementById('toggle-btn').disabled = false;
       document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('toggle-btn').classList.add('btn-green');
       document.getElementById('dot').className = 'status-dot dot-pause';
       document.getElementById('status-text').textContent = '中断中';
       setPauseBtnsDisabled(false);
@@ -551,6 +561,7 @@
       document.getElementById('main-btn').className = 'btn btn-start';
       document.getElementById('toggle-btn').disabled = true;
       document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('toggle-btn').classList.remove('btn-green');
       document.getElementById('dot').className = 'status-dot dot-idle';
       document.getElementById('status-text').textContent = '一時停止中';
       setPauseBtnsDisabled(true);
@@ -573,6 +584,7 @@
       }
       currentSegmentStart = t; isCompressing = true;
       document.getElementById('toggle-btn').textContent = '圧迫中断';
+      document.getElementById('toggle-btn').classList.remove('btn-green');
       document.getElementById('dot').className = 'status-dot dot-comp';
       document.getElementById('status-text').textContent = '圧迫中';
     } else {
@@ -581,6 +593,7 @@
       addLog('comp', '圧迫 ' + fmtS(t - currentSegmentStart) + 's', el);
       currentSegmentStart = t; isCompressing = false;
       document.getElementById('toggle-btn').textContent = '圧迫開始';
+      document.getElementById('toggle-btn').classList.add('btn-green');
       document.getElementById('dot').className = 'status-dot dot-pause';
       document.getElementById('status-text').textContent = '中断中';
     }
@@ -601,6 +614,7 @@
     document.getElementById('main-btn').className = 'btn btn-start';
     document.getElementById('toggle-btn').disabled = true;
     document.getElementById('toggle-btn').textContent = '圧迫開始';
+    document.getElementById('toggle-btn').classList.remove('btn-green');
     document.getElementById('ccf-val').innerHTML = '—<span class="ccf-unit"></span>';
     document.getElementById('ccf-val').style.color = 'var(--blue)';
     document.getElementById('bar').style.width = '0%';
