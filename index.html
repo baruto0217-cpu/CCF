@@ -299,7 +299,7 @@
       font-size: 12px;
       font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
       color: var(--text2);
-      white-space: pre;
+      white-space: pre-wrap;
       overflow-x: auto;
       line-height: 1.7;
       margin-bottom: 8px;
@@ -468,7 +468,7 @@
     if (activePauseReason === key) {
       // Same button → end pause, resume compression
       totalPause += t - currentSegmentStart;
-      addLog(key, label + ' ' + fmtS(t - currentSegmentStart) + 's', el);
+      addLog(key, label + ' ' + fmtS(t - currentSegmentStart) + 's', el, t - currentSegmentStart);
       clearPauseBtnActive();
       currentSegmentStart = t;
       isCompressing = true;
@@ -484,7 +484,7 @@
       } else if (activePauseReason && activePauseReason !== key) {
         const prevLabel = PAUSE_BTNS[activePauseReason].label;
         totalPause += t - currentSegmentStart;
-        addLog(activePauseReason, prevLabel + ' ' + fmtS(t - currentSegmentStart) + 's', el);
+        addLog(activePauseReason, prevLabel + ' ' + fmtS(t - currentSegmentStart) + 's', el, t - currentSegmentStart);
       } else if (!isCompressing && currentSegmentStart) {
         totalPause += t - currentSegmentStart;
       }
@@ -548,7 +548,7 @@
         addLog('comp', '圧迫終了', el);
       } else if (currentSegmentStart) {
         totalPause += t - currentSegmentStart;
-        addLog('pause', '中断終了', el);
+        addLog('pause', '中断終了', el, t - currentSegmentStart);
       }
       // 経過時間を保存（再開時に引き継ぐ）
       savedElapsed = t - startTime;
@@ -576,11 +576,11 @@
       // Resume compression (clear any active pause reason)
       if (activePauseReason) {
         totalPause += t - currentSegmentStart;
-        addLog(activePauseReason, PAUSE_BTNS[activePauseReason].label + ' ' + fmtS(t - currentSegmentStart) + 's', el);
+        addLog(activePauseReason, PAUSE_BTNS[activePauseReason].label + ' ' + fmtS(t - currentSegmentStart) + 's', el, t - currentSegmentStart);
         clearPauseBtnActive();
       } else if (currentSegmentStart) {
         totalPause += t - currentSegmentStart;
-        addLog('pause', '中断 ' + fmtS(t - currentSegmentStart) + 's', el);
+        addLog('pause', '中断 ' + fmtS(t - currentSegmentStart) + 's', el, t - currentSegmentStart);
       }
       currentSegmentStart = t; isCompressing = true;
       document.getElementById('toggle-btn').textContent = '圧迫中断';
@@ -663,24 +663,50 @@
     myChart.update('none');
   }
 
+  // ── 閾値チェック ─────────────────────────────────
+  const THRESHOLDS = { vent: 3, rhythm: 7, unknown: 10, pause: 10 };
+  function isOverThreshold(type, dur) {
+    return dur !== undefined && THRESHOLDS[type] !== undefined && dur > THRESHOLDS[type];
+  }
+  function isCombinedOver(logs) {
+    const total = logs.reduce((s, l) => s + ((l.type === 'vent' || l.type === 'rhythm') && l.dur !== undefined ? l.dur : 0), 0);
+    return total >= 10;
+  }
+
   // ── Log ───────────────────────────────────────────
-  function addLog(type, label, sec) {
-    logs.unshift({ type, label, sec });
+  function addLog(type, label, sec, dur) {
+    logs.unshift({ type, label, sec, dur });
+    renderLog();
+  }
+
+  function renderLog() {
+    const combined = isCombinedOver(logs);
     const logEl = document.getElementById('log');
-    logEl.innerHTML = logs.slice(0, 30).map(l =>
-      `<div class="log-row">
-        <span style="color:var(--text)">${l.label}</span>
+    logEl.innerHTML = logs.slice(0, 30).map(l => {
+      const over = isOverThreshold(l.type, l.dur);
+      const style = over ? 'color:#E24B4A;font-weight:500;' : 'color:var(--text)';
+      const warn  = over ? ' <span style="color:#E24B4A;font-size:11px;">⚠ 超過</span>' : '';
+      return `<div class="log-row">
+        <span style="${style}">${l.label}${warn}</span>
         <div style="display:flex;align-items:center;">
           <span class="log-tag ${tagClass(l.type)}">${tagLabel(l.type)}</span>
           <span class="log-time">${fmt(l.sec)}</span>
         </div>
-      </div>`
-    ).join('');
+      </div>`;
+    }).join('') + (combined ? `<div style="padding:6px 12px;font-size:12px;color:#E24B4A;font-weight:500;">⚠ 換気＋波形確認の合計が10秒を超えています</div>` : '');
   }
 
   // ── Report ────────────────────────────────────────
   function updateReport(t, comp, pause, ccf) {
     const now_str = new Date().toLocaleString('ja-JP');
+    const combined = isCombinedOver(logs);
+    const logLines = logs.slice().reverse().map(l => {
+      const over = isOverThreshold(l.type, l.dur);
+      const warn = over ? ' [⚠超過]' : '';
+      return fmt(l.sec) + '  ' + tagLabel(l.type) + '  ' + l.label + warn;
+    });
+    const warnings = [];
+    if (combined) warnings.push('⚠ 換気＋波形確認の合計が10秒を超えています');
     const lines = [
       '=== CPR セッションレポート ===',
       '記録日時　: ' + now_str,
@@ -688,15 +714,20 @@
       '圧迫時間　: ' + fmtS(comp) + ' 秒',
       '中断時間　: ' + fmtS(pause) + ' 秒',
       'CCF　　　: ' + ccf + ' %  ' + (ccf >= 80 ? '[良好]' : ccf >= 60 ? '[要改善]' : '[不十分]'),
+      ...(warnings.length ? ['', ...warnings] : []),
       '',
       '--- イベントログ ---',
-      ...logs.slice().reverse().map(l => fmt(l.sec) + '  ' + tagLabel(l.type) + '  ' + l.label)
+      ...logLines
     ];
-    document.getElementById('report-box').textContent = lines.join('\n');
+    const el = document.getElementById('report-box');
+    el.innerHTML = lines.map(line => {
+      if (line.includes('⚠')) return `<span style="color:#E24B4A;font-weight:500;">${line}</span>`;
+      return `<span>${line}</span>`;
+    }).join('\n');
   }
 
   function copyReport() {
-    const text = document.getElementById('report-box').textContent;
+    const text = document.getElementById('report-box').innerText;
     navigator.clipboard.writeText(text).then(() => {
       const el = document.getElementById('copy-msg');
       el.textContent = 'コピーしました';
