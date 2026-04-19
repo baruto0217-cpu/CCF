@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -8,321 +9,324 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg: #ffffff;
-      --bg2: #f5f5f3;
-      --bg3: #ebebea;
-      --text: #1a1a19;
-      --text2: #6b6b68;
-      --text3: #9e9e9a;
-      --border: rgba(0,0,0,0.12);
-      --border2: rgba(0,0,0,0.22);
-      --radius: 8px;
-      --radius-lg: 12px;
-      --green: #1D9E75;
-      --amber: #BA7517;
-      --red: #E24B4A;
-      --blue: #185FA5;
-    }
+```
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f5f3;
+  --bg3: #ebebea;
+  --text: #1a1a19;
+  --text2: #6b6b68;
+  --text3: #9e9e9a;
+  --border: rgba(0,0,0,0.12);
+  --border2: rgba(0,0,0,0.22);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --green: #1D9E75;
+  --amber: #BA7517;
+  --red: #E24B4A;
+  --blue: #185FA5;
+}
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #1c1c1b;
-        --bg2: #252524;
-        --bg3: #2e2e2c;
-        --text: #f0efea;
-        --text2: #a0a09b;
-        --text3: #6b6b68;
-        --border: rgba(255,255,255,0.10);
-        --border2: rgba(255,255,255,0.20);
-      }
-    }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1b;
+    --bg2: #252524;
+    --bg3: #2e2e2c;
+    --text: #f0efea;
+    --text2: #a0a09b;
+    --text3: #6b6b68;
+    --border: rgba(255,255,255,0.10);
+    --border2: rgba(255,255,255,0.20);
+  }
+}
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
-      font-size: 16px;
-      line-height: 1.5;
-      -webkit-tap-highlight-color: transparent;
-    }
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
 
-    .app {
-      max-width: 540px;
-      margin: 0 auto;
-      padding: 16px 16px 40px;
-    }
+.app {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
 
-    /* Header */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .header h1 {
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--text);
-    }
-    .header h1 span {
-      font-size: 12px;
-      font-weight: 400;
-      color: var(--text2);
-      margin-left: 6px;
-    }
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.header h1 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+.header h1 span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text2);
+  margin-left: 6px;
+}
 
-    /* Status bar */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      font-size: 13px;
-      color: var(--text2);
-      margin-bottom: 14px;
-      height: 20px;
-    }
-    .status-dot {
-      display: inline-block;
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      margin-right: 7px;
-      flex-shrink: 0;
-    }
-    .dot-idle   { background: var(--text3); }
-    .dot-comp   { background: var(--green); animation: pulse 1s infinite; }
-    .dot-pause  { background: var(--amber); }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
-    .clock {
-      margin-left: auto;
-      font-size: 14px;
-      font-variant-numeric: tabular-nums;
-      font-weight: 500;
-    }
+/* Status bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 14px;
+  height: 20px;
+}
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 7px;
+  flex-shrink: 0;
+}
+.dot-idle   { background: var(--text3); }
+.dot-comp   { background: var(--green); animation: pulse 1s infinite; }
+.dot-pause  { background: var(--amber); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+.clock {
+  margin-left: auto;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
 
-    /* CCF big number */
-    .ccf-block {
-      text-align: center;
-      margin: 4px 0 12px;
-    }
-    .ccf-num {
-      font-size: 72px;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -2px;
-      transition: color 0.3s;
-    }
-    .ccf-unit {
-      font-size: 20px;
-      font-weight: 400;
-      color: var(--text2);
-      margin-left: 4px;
-    }
-    .ccf-sub {
-      font-size: 12px;
-      color: var(--text3);
-      margin-top: 4px;
-    }
+/* CCF big number */
+.ccf-block {
+  text-align: center;
+  margin: 4px 0 12px;
+}
+.ccf-num {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -2px;
+  transition: color 0.3s;
+}
+.ccf-unit {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text2);
+  margin-left: 4px;
+}
+.ccf-sub {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 4px;
+}
 
-    /* Progress bar */
-    .bar-wrap {
-      height: 10px;
-      background: var(--bg2);
-      border-radius: 99px;
-      overflow: hidden;
-      margin-bottom: 5px;
-      border: 0.5px solid var(--border);
-    }
-    .bar-fill {
-      height: 100%;
-      border-radius: 99px;
-      transition: width 0.3s, background 0.3s;
-      width: 0%;
-      background: var(--blue);
-    }
-    .threshold-hint {
-      font-size: 11px;
-      color: var(--text3);
-      text-align: center;
-      margin-bottom: 14px;
-    }
+/* Progress bar */
+.bar-wrap {
+  height: 10px;
+  background: var(--bg2);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 5px;
+  border: 0.5px solid var(--border);
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s, background 0.3s;
+  width: 0%;
+  background: var(--blue);
+}
+.threshold-hint {
+  font-size: 11px;
+  color: var(--text3);
+  text-align: center;
+  margin-bottom: 14px;
+}
 
-    /* Metric cards */
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0,1fr));
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-    .metric {
-      background: var(--bg2);
-      border-radius: var(--radius);
-      padding: 10px 12px;
-    }
-    .metric .m-label {
-      font-size: 11px;
-      color: var(--text3);
-      margin-bottom: 3px;
-    }
-    .metric .m-val {
-      font-size: 22px;
-      font-weight: 600;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-    .metric .m-unit {
-      font-size: 11px;
-      color: var(--text3);
-    }
+/* Metric cards */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.metric {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.metric .m-label {
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 3px;
+}
+.metric .m-val {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.metric .m-unit {
+  font-size: 11px;
+  color: var(--text3);
+}
 
-    /* Buttons */
-    .btn-row { display: flex; gap: 8px; margin-bottom: 8px; }
-    .btn {
-      flex: 1;
-      padding: 15px 10px;
-      border-radius: var(--radius-lg);
-      border: 0.5px solid var(--border2);
-      background: var(--bg);
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--text);
-      cursor: pointer;
-      transition: background 0.1s, transform 0.08s, opacity 0.15s;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-    .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+/* Buttons */
+.btn-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.btn {
+  flex: 1;
+  padding: 15px 10px;
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border2);
+  background: var(--bg);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s, transform 0.08s, opacity 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.3; cursor: default; transform: none; }
 
-    .btn-start {
-      background: var(--blue);
-      color: #fff;
-      border-color: var(--blue);
-      font-size: 16px;
-    }
-    .btn-start:active { background: #0C447C; }
+.btn-start {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+  font-size: 16px;
+}
+.btn-start:active { background: #0C447C; }
 
-    .btn-stop {
-      background: var(--bg2);
-      border-color: var(--border2);
-      font-size: 16px;
-    }
+.btn-stop {
+  background: var(--bg2);
+  border-color: var(--border2);
+  font-size: 16px;
+}
 
-    .btn-danger { color: var(--red); }
+.btn-danger { color: var(--red); }
 
-    .btn-pause-active {
-      background: #FAEEDA;
-      color: #633806;
-      border-color: #854F0B;
-    }
-    .btn-green {
-      background: #1D9E75;
-      color: #fff;
-      border-color: #0F6E56;
-    }
-    .btn-green:active { background: #0F6E56; }
-    @media (prefers-color-scheme: dark) {
-      .btn-pause-active { background: #3a2200; color: #FAC775; border-color: #BA7517; }
-      .btn-green { background: #0F6E56; border-color: #085041; }
-    }
+.btn-pause-active {
+  background: #FAEEDA;
+  color: #633806;
+  border-color: #854F0B;
+}
+.btn-green {
+  background: #1D9E75;
+  color: #fff;
+  border-color: #0F6E56;
+}
+.btn-green:active { background: #0F6E56; }
+@media (prefers-color-scheme: dark) {
+  .btn-pause-active { background: #3a2200; color: #FAC775; border-color: #BA7517; }
+  .btn-green { background: #0F6E56; border-color: #085041; }
+}
 
-    /* Divider & section labels */
-    .divider { height: 0.5px; background: var(--border); margin: 14px 0; }
-    .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text3);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-    .pause-reason-label {
-      font-size: 12px;
-      color: var(--text2);
-      margin-bottom: 7px;
-    }
+/* Divider & section labels */
+.divider { height: 0.5px; background: var(--border); margin: 14px 0; }
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.pause-reason-label {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 7px;
+}
 
-    /* Event log */
-    .log {
-      max-height: 130px;
-      overflow-y: auto;
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      background: var(--bg2);
-    }
-    .log-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 12px;
-      border-bottom: 0.5px solid var(--border);
-      font-size: 13px;
-    }
-    .log-row:last-child { border-bottom: none; }
-    .log-tag {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 99px;
-      font-weight: 500;
-      flex-shrink: 0;
-      margin-left: 8px;
-    }
-    .tag-comp    { background: #dbeeff; color: #0C447C; }
-    .tag-vent    { background: #d6efc0; color: #27500A; }
-    .tag-rhythm  { background: #e8e6ff; color: #3C3489; }
-    .tag-unknown { background: #e5e4de; color: #444441; }
-    .tag-pause   { background: #fae5c0; color: #633806; }
-    @media (prefers-color-scheme: dark) {
-      .tag-comp    { background: #0C447C; color: #B5D4F4; }
-      .tag-vent    { background: #27500A; color: #C0DD97; }
-      .tag-rhythm  { background: #3C3489; color: #CECBF6; }
-      .tag-unknown { background: #444441; color: #D3D1C7; }
-      .tag-pause   { background: #633806; color: #FAC775; }
-    }
-    .log-time { font-size: 11px; color: var(--text3); font-variant-numeric: tabular-nums; margin-left: 6px; }
-    .empty-log {
-      padding: 16px;
-      text-align: center;
-      font-size: 13px;
-      color: var(--text3);
-    }
+/* Event log */
+.log {
+  max-height: 130px;
+  overflow-y: auto;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg2);
+}
+.log-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+}
+.log-row:last-child { border-bottom: none; }
+.log-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+.tag-comp    { background: #dbeeff; color: #0C447C; }
+.tag-vent    { background: #d6efc0; color: #27500A; }
+.tag-rhythm  { background: #e8e6ff; color: #3C3489; }
+.tag-unknown { background: #e5e4de; color: #444441; }
+.tag-pause   { background: #fae5c0; color: #633806; }
+@media (prefers-color-scheme: dark) {
+  .tag-comp    { background: #0C447C; color: #B5D4F4; }
+  .tag-vent    { background: #27500A; color: #C0DD97; }
+  .tag-rhythm  { background: #3C3489; color: #CECBF6; }
+  .tag-unknown { background: #444441; color: #D3D1C7; }
+  .tag-pause   { background: #633806; color: #FAC775; }
+}
+.log-time { font-size: 11px; color: var(--text3); font-variant-numeric: tabular-nums; margin-left: 6px; }
+.empty-log {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text3);
+}
 
-    /* Chart */
-    .chart-wrap { position: relative; width: 100%; height: 180px; margin-bottom: 12px; }
+/* Chart */
+.chart-wrap { position: relative; width: 100%; height: 180px; margin-bottom: 12px; }
 
-    /* Report */
-    .report-box {
-      background: var(--bg2);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 12px 14px;
-      font-size: 12px;
-      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-      color: var(--text2);
-      white-space: pre-wrap;
-      overflow-x: auto;
-      line-height: 1.7;
-      margin-bottom: 8px;
-    }
-    .copy-msg {
-      font-size: 12px;
-      color: var(--green);
-      text-align: center;
-      height: 18px;
-      margin-bottom: 4px;
-    }
-    .btn-copy {
-      font-size: 13px;
-      padding: 10px;
-    }
+/* Report */
+.report-box {
+  background: var(--bg2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  font-size: 12px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  color: var(--text2);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+.copy-msg {
+  font-size: 12px;
+  color: var(--green);
+  text-align: center;
+  height: 18px;
+  margin-bottom: 4px;
+}
+.btn-copy {
+  font-size: 13px;
+  padding: 10px;
+}
 
-    /* Footer */
-    .footer {
-      text-align: center;
-      font-size: 11px;
-      color: var(--text3);
-      margin-top: 24px;
-    }
+/* Footer */
+.footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 24px;
+}
+```
+
   </style>
 </head>
 <body>
@@ -333,6 +337,7 @@
   </div>
 
   <!-- Status -->
+
   <div class="status-bar">
     <span class="status-dot dot-idle" id="dot"></span>
     <span id="status-text">待機中</span>
@@ -340,16 +345,19 @@
   </div>
 
   <!-- CCF big number -->
+
   <div class="ccf-block">
     <div class="ccf-num" id="ccf-val" style="color: var(--blue);">—<span class="ccf-unit"></span></div>
     <div class="ccf-sub">Chest Compression Fraction (%)</div>
   </div>
 
   <!-- Progress bar -->
+
   <div class="bar-wrap"><div class="bar-fill" id="bar"></div></div>
   <div class="threshold-hint">80%以上: 良好 &nbsp;|&nbsp; 60–79%: 要改善 &nbsp;|&nbsp; 60%未満: 不十分</div>
 
   <!-- Metrics -->
+
   <div class="metric-grid">
     <div class="metric">
       <div class="m-label">圧迫時間</div>
@@ -366,12 +374,14 @@
   </div>
 
   <!-- Main controls -->
+
   <div class="btn-row">
     <button class="btn btn-start" id="main-btn" onclick="handleMain()">接触</button>
     <button class="btn" id="toggle-btn" onclick="handleToggle()" disabled>圧迫開始</button>
   </div>
 
   <!-- Pause reason buttons -->
+
   <div class="divider"></div>
   <div class="pause-reason-label">中断理由（押すと中断開始 / もう一度または「開始」で再開）</div>
   <div class="btn-row">
@@ -386,6 +396,7 @@
   </div>
 
   <!-- Chart -->
+
   <div class="divider"></div>
   <div class="section-label">CCF 時系列</div>
   <div class="chart-wrap">
@@ -393,11 +404,13 @@
   </div>
 
   <!-- Event log -->
+
   <div class="divider"></div>
   <div class="section-label">イベントログ</div>
   <div class="log" id="log"><div class="empty-log">ログはここに表示されます</div></div>
 
   <!-- Report -->
+
   <div class="divider"></div>
   <div class="section-label">レポート</div>
   <div class="report-box" id="report-box">計測を開始するとレポートが生成されます</div>
@@ -422,6 +435,7 @@
   let chartLabels = [], chartData = [];
   let myChart = null;
   let savedElapsed = 0;
+  let wakeLock = null;
 
   const PAUSE_BTNS = {
     vent:    { id: 'btn-vent',    label: '換気',      tagClass: 'tag-vent'    },
@@ -602,6 +616,7 @@
   // ── Reset ──────────────────────────────────────────
   function handleReset() {
     clearInterval(timerInterval); clearInterval(chartInterval);
+    releaseWakeLock();
     state = 'idle'; startTime = null;
     totalComp = 0; totalPause = 0;
     currentSegmentStart = null; isCompressing = false;
@@ -740,7 +755,22 @@
   }
 
   // ── Chart init ────────────────────────────────────
-  function initChart() {
+  // ── Screen Wake Lock ──────────────────────────────
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch(e) {}
+  }
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state === 'running') requestWakeLock();
+  });
+
+    function initChart() {
     const isDark   = matchMedia('(prefers-color-scheme: dark)').matches;
     const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
     const textColor = isDark ? '#6b6b68' : '#9e9e9a';
@@ -806,5 +836,6 @@
 
   initChart();
 </script>
+
 </body>
 </html>
