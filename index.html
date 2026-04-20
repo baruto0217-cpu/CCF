@@ -222,10 +222,18 @@ html, body {
   color: #fff;
   border-color: #0F6E56;
 }
-.btn-green:active { background: #0F6E56; }
+.btn-green:active { background: #0F6E56 !important; color: #fff !important; }
+.btn-red {
+  background: #E24B4A;
+  color: #fff;
+  border-color: #A32D2D;
+}
+.btn-red:active { background: #A32D2D !important; color: #fff !important; }
+.btn-start:active { background: #0C447C !important; color: #fff !important; }
 @media (prefers-color-scheme: dark) {
   .btn-pause-active { background: #3a2200; color: #FAC775; border-color: #BA7517; }
-  .btn-green { background: #0F6E56; border-color: #085041; }
+  .btn-green { background: #0F6E56; border-color: #085041; color: #fff; }
+  .btn-red   { background: #A32D2D; border-color: #791F1F; color: #fff; }
 }
 
 /* Divider & section labels */
