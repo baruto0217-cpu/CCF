@@ -181,34 +181,40 @@
       flex: 1;
       padding: 15px 10px;
       border-radius: var(--radius-lg);
-      border: 0.5px solid var(--border2);
-      background: var(--bg);
+      border: 2px solid var(--border2);
+      background: var(--bg2);
       font-size: 15px;
-      font-weight: 500;
+      font-weight: 600;
       color: var(--text);
       cursor: pointer;
-      transition: background 0.1s, transform 0.08s, opacity 0.15s;
+      transition: background 0.1s, transform 0.1s, box-shadow 0.1s, opacity 0.15s;
       -webkit-user-select: none;
       user-select: none;
+      box-shadow: 0 2px 0 var(--border2);
     }
-    .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+    .btn:active {
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+    .btn:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: 0 2px 0 var(--border2); }
 
     .btn-start {
       background: var(--blue);
       color: #fff;
-      border-color: var(--blue);
+      border-color: #0C447C;
       font-size: 16px;
+      box-shadow: 0 3px 0 #0C447C;
     }
-    .btn-start:active { background: #0C447C; }
+    .btn-start:active { background: #0C447C !important; color: #fff !important; box-shadow: none; }
 
     .btn-stop {
       background: var(--bg2);
       border-color: var(--border2);
       font-size: 16px;
+      box-shadow: 0 3px 0 var(--border2);
     }
 
-    .btn-danger { color: var(--red); }
+    .btn-danger { color: var(--red); border-color: rgba(226,75,74,0.4); box-shadow: 0 2px 0 rgba(226,75,74,0.3); }
 
     .btn-pause-active {
       background: #FAEEDA;
@@ -219,14 +225,16 @@
       background: #1D9E75;
       color: #fff;
       border-color: #0F6E56;
+      box-shadow: 0 3px 0 #0F6E56;
     }
-    .btn-green:active { background: #0F6E56 !important; color: #fff !important; }
+    .btn-green:active { background: #0F6E56 !important; color: #fff !important; box-shadow: none !important; }
     .btn-red {
       background: #E24B4A;
       color: #fff;
       border-color: #A32D2D;
+      box-shadow: 0 3px 0 #A32D2D;
     }
-    .btn-red:active { background: #A32D2D !important; color: #fff !important; }
+    .btn-red:active { background: #A32D2D !important; color: #fff !important; box-shadow: none !important; }
     .btn-start:active { background: #0C447C !important; color: #fff !important; }
     @media (prefers-color-scheme: dark) {
       .btn-pause-active { background: #3a2200; color: #FAC775; border-color: #BA7517; }
