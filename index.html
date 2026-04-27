@@ -459,6 +459,7 @@
   let currentCPP = 0;
   let cppTarget = 0;        // 漸近的に近づく目標CPP
   let compressionStartTime = null; // 圧迫開始時刻（立ち上がり計算用）
+  let compressionStartCPP  = 0;    // 圧迫再開時のCPP残存値
   let pauseStartTime = null;        // 中断開始時刻（逆S字減衰用）
   let pauseStartCPP  = 0;           // 中断開始時のCPP値
 
@@ -572,7 +573,7 @@
         totalComp = 0; totalPause = 0;
         logs = [];
         chartLabels.length = 0; chartData.length = 0; cppData.length = 0;
-        currentCPP = 0; cppTarget = 0; compressionStartTime = null; pauseStartTime = null; pauseStartCPP = 0;
+        currentCPP = 0; cppTarget = 0; compressionStartTime = null; compressionStartCPP = 0; pauseStartTime = null; pauseStartCPP = 0;
         if (myChart) myChart.update('none');
         document.getElementById('log').innerHTML = '<div class="empty-log">ログはここに表示されます</div>';
         document.getElementById('report-box').textContent = '計測を開始するとレポートが生成されます';
@@ -663,7 +664,7 @@
     currentSegmentStart = null; isCompressing = false;
     activePauseReason = null; logs = [];
     chartLabels.length = 0; chartData.length = 0; cppData.length = 0;
-    currentCPP = 0; cppTarget = 0; compressionStartTime = null; pauseStartTime = null; pauseStartCPP = 0;
+    currentCPP = 0; cppTarget = 0; compressionStartTime = null; compressionStartCPP = 0; pauseStartTime = null; pauseStartCPP = 0;
     if (myChart) myChart.update('none');
     clearPauseBtnActive();
     setPauseBtnsDisabled(true);
@@ -725,21 +726,26 @@
     const deltaTime = 0.5;
 
     if (isCompressing) {
-      if (!compressionStartTime) compressionStartTime = now();
+      if (!compressionStartTime) {
+        compressionStartTime = now();
+        // 再圧迫開始時のCPP残存値を起点として保存
+        // → 中断が短ければ高い値から再上昇、長ければほぼ0から再構築
+        compressionStartCPP = currentCPP;
+      }
       const elapsed = now() - compressionStartTime;
       // S字カーブ（シグモイド）: 最初の15回（≈8.2秒）はゆっくり、その後急上昇
-      // sigmoid(t) = 1 / (1 + e^(-k*(t - t0)))
-      // t0 = 変曲点（= CPP_RISE_TAU = 8.2秒 ≒ 15回目）
-      // k  = 傾きの急峻さ（大きいほど変曲点前後の差が大きい）
-      const k = 0.55;  // 傾き係数（調整可）
-      const sigmoid = 1 / (1 + Math.exp(-k * (elapsed - CPP_RISE_TAU)));
-      // sigmoid は t=0 で約0.01〜0.05、t=t0 で0.5、t=2*t0 で0.95 程度
-      // 開始直後が0でないため、オフセット補正してきれいに0からスタートさせる
-      const offset = 1 / (1 + Math.exp(k * CPP_RISE_TAU)); // t=0 でのsigmoid値
-      cppTarget = CPP_MAX * (sigmoid - offset) / (1 - offset);
+      // 変曲点 t0 = CPP_RISE_TAU = 8.2秒、傾き k = 0.55
+      const k = 0.55;
+      const sig  = 1 / (1 + Math.exp(-k * (elapsed - CPP_RISE_TAU)));
+      const sig0 = 1 / (1 + Math.exp(k * CPP_RISE_TAU)); // t=0でのsigmoid
+      // 正規化: t=0→0, t→∞→1 のS字（0〜1の範囲）
+      const rise = Math.max(0, (sig - sig0) / (1 - sig0));
+      // 残存CPP（compressionStartCPP）を起点に CPP_MAX へS字で上昇
+      // CPPが既に高い状態で再開した場合は、そこからの差分だけ上昇する
+      cppTarget = compressionStartCPP + (CPP_MAX - compressionStartCPP) * rise;
       if (cppTarget < 0) cppTarget = 0;
-      // 現在値をtargetに向けてなめらかに追従
-      currentCPP += (cppTarget - currentCPP) * (1 - Math.exp(-deltaTime / 0.5));
+      // 現在値をtargetに向けてなめらかに追従（追従時定数1.5秒に延長してより緩やかに）
+      currentCPP += (cppTarget - currentCPP) * (1 - Math.exp(-deltaTime / 1.5));
     } else {
       // 中断開始 → compressionStartTime をリセット（次の圧迫は0から再構築）
       if (compressionStartTime !== null) {
