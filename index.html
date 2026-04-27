@@ -305,6 +305,21 @@
 
     /* Chart */
     .chart-wrap { position: relative; width: 100%; height: 180px; margin-bottom: 12px; }
+    .chart-toggle-row { display: flex; gap: 6px; margin-bottom: 8px; }
+    .chart-toggle {
+      padding: 5px 14px;
+      border-radius: 99px;
+      border: 2px solid var(--border2);
+      background: var(--bg2);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chart-toggle.active-ccf  { background: #1D9E75; color: #fff; border-color: #0F6E56; }
+    .chart-toggle.active-cpp  { background: #9B59B6; color: #fff; border-color: #6C3483; }
+    .chart-toggle:active { transform: scale(0.96); }
 
     /* Report */
     .report-box {
@@ -404,6 +419,10 @@
   <!-- Chart -->
   <div class="divider"></div>
   <div class="section-label">CCF 時系列</div>
+  <div class="chart-toggle-row">
+    <button class="chart-toggle active-ccf" id="toggle-ccf" onclick="toggleWave('ccf')">CCF (%)</button>
+    <button class="chart-toggle active-cpp" id="toggle-cpp" onclick="toggleWave('cpp')">CPP (mmHg)</button>
+  </div>
   <div class="chart-wrap">
     <canvas id="ccfChart" role="img" aria-label="CCFの時系列推移グラフ">CCF時系列データ</canvas>
   </div>
@@ -435,8 +454,24 @@
   let activePauseReason = null;
   let timerInterval = null, chartInterval = null;
   let logs = [];
-  let chartLabels = [], chartData = [];
+  let chartLabels = [], chartData = [], cppData = [];
   let myChart = null;
+  let currentCPP = 0;
+  let cppTarget = 0;        // 漸近的に近づく目標CPP
+  let compressionStartTime = null; // 圧迫開始時刻（立ち上がり計算用）
+
+  // ── CPP生理学的パラメータ ──────────────────────────
+  // 根拠: 大動脈圧は圧迫開始直後には上がらず、
+  //       "aortic reserve" 構築に数回分の圧迫が必要（約15回 = 110回/分で約8秒）
+  //       中断後の再開も同様に再構築時間が必要
+  //       (Lurie et al. Circulation 2002, EMSWorld Science of Compressions,
+  //        Steet et al / Berg et al: 15 compressions to re-establish CPP)
+  const CPP_MAX       = 40;   // 良質なCPRでの到達目標（mmHg）。ROSCには15〜25必要
+  const CPP_RISE_TAU  = 8.2;  // 立ち上がり時定数（秒）: 110回/分で15回≈8.2秒
+  const CPP_DECAY_TAU = 3.5;  // 減衰時定数（秒）: 10秒中断でほぼ0 (Hallstrom 2000相当)
+  // 圧迫レート: 110回/分（AHA推奨範囲100〜120の中間値）
+  // CPPは圧迫中の "到達目標" に向けて1次遅れで上昇、
+  // 中断中は指数関数的に減衰（時定数3.5秒）
   let savedElapsed = 0;
   let wakeLock = null;
 
@@ -534,7 +569,8 @@
         startTime = t;
         totalComp = 0; totalPause = 0;
         logs = [];
-        chartLabels.length = 0; chartData.length = 0;
+        chartLabels.length = 0; chartData.length = 0; cppData.length = 0;
+        currentCPP = 0; cppTarget = 0; compressionStartTime = null;
         if (myChart) myChart.update('none');
         document.getElementById('log').innerHTML = '<div class="empty-log">ログはここに表示されます</div>';
         document.getElementById('report-box').textContent = '計測を開始するとレポートが生成されます';
@@ -551,7 +587,7 @@
       document.getElementById('status-text').textContent = '中断中';
       setPauseBtnsDisabled(false);
       timerInterval = setInterval(updateUI, 200);
-      chartInterval = setInterval(updateChart, 2000);
+      chartInterval = setInterval(updateChart, 500);
     } else {
       // 中断理由アクティブ中は圧迫再開として扱う
       if (activePauseReason) {
@@ -624,7 +660,8 @@
     totalComp = 0; totalPause = 0;
     currentSegmentStart = null; isCompressing = false;
     activePauseReason = null; logs = [];
-    chartLabels.length = 0; chartData.length = 0;
+    chartLabels.length = 0; chartData.length = 0; cppData.length = 0;
+    currentCPP = 0; cppTarget = 0; compressionStartTime = null;
     if (myChart) myChart.update('none');
     clearPauseBtnActive();
     setPauseBtnsDisabled(true);
@@ -674,10 +711,47 @@
     if (!myChart || state === 'idle') return;
     const t    = now() - startTime;
     const comp = totalComp + (isCompressing && currentSegmentStart ? now() - currentSegmentStart : 0);
-    const ccf  = t > 0 ? Math.round((comp / t) * 100) : 0;
+    const ccf  = t > 0 ? (comp / t) * 100 : 0;
+
+    // ── 生理学的CPPシミュレーション（0.5秒ごと更新）──────
+    // 根拠:
+    //  圧迫中: 大動脈圧は "aortic reserve" 構築のため1次遅れで上昇
+    //          立ち上がり時定数 CPP_RISE_TAU 秒で目標CPP_MAXに漸近
+    //          圧迫開始からの経過時間で目標値を計算
+    //  中断中: 10秒でCPPはほぼ0に（時定数3.5秒の指数減衰）
+    //          再開時もゼロからの再構築が必要
+    const deltaTime = 0.5;
+
+    if (isCompressing) {
+      if (!compressionStartTime) compressionStartTime = now();
+      const elapsed = now() - compressionStartTime;
+      // S字カーブ（シグモイド）: 最初の15回（≈8.2秒）はゆっくり、その後急上昇
+      // sigmoid(t) = 1 / (1 + e^(-k*(t - t0)))
+      // t0 = 変曲点（= CPP_RISE_TAU = 8.2秒 ≒ 15回目）
+      // k  = 傾きの急峻さ（大きいほど変曲点前後の差が大きい）
+      const k = 0.55;  // 傾き係数（調整可）
+      const sigmoid = 1 / (1 + Math.exp(-k * (elapsed - CPP_RISE_TAU)));
+      // sigmoid は t=0 で約0.01〜0.05、t=t0 で0.5、t=2*t0 で0.95 程度
+      // 開始直後が0でないため、オフセット補正してきれいに0からスタートさせる
+      const offset = 1 / (1 + Math.exp(k * CPP_RISE_TAU)); // t=0 でのsigmoid値
+      cppTarget = CPP_MAX * (sigmoid - offset) / (1 - offset);
+      if (cppTarget < 0) cppTarget = 0;
+      // 現在値をtargetに向けてなめらかに追従
+      currentCPP += (cppTarget - currentCPP) * (1 - Math.exp(-deltaTime / 0.5));
+    } else {
+      // 中断開始 → compressionStartTime をリセット（次の圧迫は0から再構築）
+      compressionStartTime = null;
+      cppTarget = 0;
+      // 指数減衰: e^(-Δt/τ_decay)
+      currentCPP = currentCPP * Math.exp(-deltaTime / CPP_DECAY_TAU);
+      if (currentCPP < 0.1) currentCPP = 0;
+    }
+
     chartLabels.push(fmt(t));
-    chartData.push(ccf);
-    if (chartLabels.length > 120) { chartLabels.shift(); chartData.shift(); }
+    chartData.push(parseFloat(ccf.toFixed(1)));
+    cppData.push(parseFloat(currentCPP.toFixed(1)));
+    // 500ms×240点=120秒分保持
+    if (chartLabels.length > 240) { chartLabels.shift(); chartData.shift(); cppData.shift(); }
     myChart.update('none');
   }
 
@@ -773,7 +847,27 @@
     if (document.visibilityState === 'visible' && state === 'running') requestWakeLock();
   });
 
-    function initChart() {
+    // ── 波形表示切替 ──────────────────────────────────
+  function toggleWave(type) {
+    if (!myChart) return;
+    const idx = type === 'ccf' ? 0 : 1;
+    const btn = document.getElementById('toggle-' + type);
+    const meta = myChart.getDatasetMeta(idx);
+    const hidden = !meta.hidden;
+    myChart.setDatasetVisibility(idx, !hidden);
+    myChart.update();
+    if (hidden) {
+      btn.classList.remove('active-ccf', 'active-cpp');
+    } else {
+      btn.classList.add(type === 'ccf' ? 'active-ccf' : 'active-cpp');
+    }
+    // 非表示の場合は対応する軸も隠す
+    const scaleKey = type === 'ccf' ? 'y' : 'y2';
+    myChart.options.scales[scaleKey].display = !hidden;
+    myChart.update();
+  }
+
+  function initChart() {
     const isDark   = matchMedia('(prefers-color-scheme: dark)').matches;
     const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
     const textColor = isDark ? '#6b6b68' : '#9e9e9a';
@@ -805,22 +899,58 @@
       type: 'line',
       data: {
         labels: chartLabels,
-        datasets: [{
-          data: chartData,
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: false,
-          segment: { borderColor: ctx => ccfColor(ctx.p1.parsed.y) }
-        }]
+        datasets: [
+          {
+            label: 'CCF',
+            data: chartData,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4,
+            cubicInterpolationMode: 'monotone',
+            fill: false,
+            yAxisID: 'y',
+            segment: { borderColor: ctx => ccfColor(ctx.p1.parsed.y) }
+          },
+          {
+            label: 'CPP',
+            data: cppData,
+            borderWidth: 2,
+            borderColor: '#9B59B6',
+            borderDash: [5, 3],
+            pointRadius: 0,
+            tension: 0.4,
+            cubicInterpolationMode: 'monotone',
+            fill: false,
+            yAxisID: 'y2'
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
         plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: c => 'CCF: ' + Math.round(c.parsed.y) + '%' } }
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: textColor,
+              font: { size: 11 },
+              boxWidth: 24,
+              padding: 10,
+              generateLabels: chart => [
+                { text: 'CCF (%)', fillStyle: 'transparent', strokeStyle: '#1D9E75', lineWidth: 2, hidden: false, datasetIndex: 0 },
+                { text: 'CPP (mmHg)', fillStyle: 'transparent', strokeStyle: '#9B59B6', lineWidth: 2, lineDash: [5,3], hidden: false, datasetIndex: 1 }
+              ]
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: c => c.datasetIndex === 0
+                ? 'CCF: ' + Math.round(c.parsed.y) + '%'
+                : 'CPP: ' + Math.round(c.parsed.y) + ' mmHg'
+            }
+          }
         },
         scales: {
           x: {
@@ -829,8 +959,16 @@
           },
           y: {
             min: 0, max: 100,
+            position: 'left',
             ticks: { color: textColor, font: { size: 11 }, callback: v => v + '%' },
             grid:  { color: gridColor }
+          },
+          y2: {
+            min: 0, max: 50,
+            position: 'right',
+            ticks: { color: '#9B59B6', font: { size: 11 }, callback: v => v + '' },
+            grid:  { drawOnChartArea: false },
+            title: { display: true, text: 'mmHg', color: '#9B59B6', font: { size: 10 } }
           }
         }
       }
