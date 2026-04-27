@@ -659,7 +659,7 @@
   function handleReset() {
     clearInterval(timerInterval); clearInterval(chartInterval);
     releaseWakeLock();
-    state = 'idle'; startTime = null;
+    state = 'idle'; startTime = null; savedElapsed = 0;
     totalComp = 0; totalPause = 0;
     currentSegmentStart = null; isCompressing = false;
     activePauseReason = null; logs = [];
