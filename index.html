@@ -459,6 +459,8 @@
   let currentCPP = 0;
   let cppTarget = 0;        // 漸近的に近づく目標CPP
   let compressionStartTime = null; // 圧迫開始時刻（立ち上がり計算用）
+  let pauseStartTime = null;        // 中断開始時刻（逆S字減衰用）
+  let pauseStartCPP  = 0;           // 中断開始時のCPP値
 
   // ── CPP生理学的パラメータ ──────────────────────────
   // 根拠: 大動脈圧は圧迫開始直後には上がらず、
@@ -468,7 +470,7 @@
   //        Steet et al / Berg et al: 15 compressions to re-establish CPP)
   const CPP_MAX       = 40;   // 良質なCPRでの到達目標（mmHg）。ROSCには15〜25必要
   const CPP_RISE_TAU  = 8.2;  // 立ち上がり時定数（秒）: 110回/分で15回≈8.2秒
-  const CPP_DECAY_TAU = 3.5;  // 減衰時定数（秒）: 10秒中断でほぼ0 (Hallstrom 2000相当)
+  const CPP_DECAY_TAU = 4.5;  // 変曲点（秒）: 4.5秒で急落開始、10秒中断でほぼ0
   // 圧迫レート: 110回/分（AHA推奨範囲100〜120の中間値）
   // CPPは圧迫中の "到達目標" に向けて1次遅れで上昇、
   // 中断中は指数関数的に減衰（時定数3.5秒）
@@ -570,7 +572,7 @@
         totalComp = 0; totalPause = 0;
         logs = [];
         chartLabels.length = 0; chartData.length = 0; cppData.length = 0;
-        currentCPP = 0; cppTarget = 0; compressionStartTime = null;
+        currentCPP = 0; cppTarget = 0; compressionStartTime = null; pauseStartTime = null; pauseStartCPP = 0;
         if (myChart) myChart.update('none');
         document.getElementById('log').innerHTML = '<div class="empty-log">ログはここに表示されます</div>';
         document.getElementById('report-box').textContent = '計測を開始するとレポートが生成されます';
@@ -661,7 +663,7 @@
     currentSegmentStart = null; isCompressing = false;
     activePauseReason = null; logs = [];
     chartLabels.length = 0; chartData.length = 0; cppData.length = 0;
-    currentCPP = 0; cppTarget = 0; compressionStartTime = null;
+    currentCPP = 0; cppTarget = 0; compressionStartTime = null; pauseStartTime = null; pauseStartCPP = 0;
     if (myChart) myChart.update('none');
     clearPauseBtnActive();
     setPauseBtnsDisabled(true);
@@ -740,11 +742,24 @@
       currentCPP += (cppTarget - currentCPP) * (1 - Math.exp(-deltaTime / 0.5));
     } else {
       // 中断開始 → compressionStartTime をリセット（次の圧迫は0から再構築）
-      compressionStartTime = null;
-      cppTarget = 0;
-      // 指数減衰: e^(-Δt/τ_decay)
-      currentCPP = currentCPP * Math.exp(-deltaTime / CPP_DECAY_TAU);
-      if (currentCPP < 0.1) currentCPP = 0;
+      if (compressionStartTime !== null) {
+        // 中断開始時刻を記録
+        compressionStartTime = null;
+        pauseStartCPP = currentCPP;   // 中断開始時のCPP値を保存
+        pauseStartTime = now();        // 中断開始時刻を記録
+      }
+      // 逆S字減衰: 最初は緩やか、変曲点（τ_decay=4.5秒）を過ぎると急落
+      // f(t) = 1 - sigmoid(t) = 1 / (1 + e^(k_decay*(t - τ_decay)))
+      // オフセット補正で t=0 に f(0)=1 となるよう正規化
+      const pauseElapsed = now() - (pauseStartTime || now());
+      const k_d = 0.7;   // 急峻さ（大きいほど変曲点前後の落差が大きい）
+      const tau_d = CPP_DECAY_TAU; // 変曲点 = 4.5秒
+      const sig0 = 1 / (1 + Math.exp(-k_d * (0   - tau_d))); // t=0 での sigmoid
+      const sigT = 1 / (1 + Math.exp(-k_d * (pauseElapsed - tau_d))); // 現在
+      // 残存率: t=0 で1、t=τ_d で約0.5、それ以降急落
+      const remain = (1 - sigT) / (1 - sig0);
+      currentCPP = pauseStartCPP * Math.max(0, remain);
+      if (currentCPP < 0.2) currentCPP = 0;
     }
 
     chartLabels.push(fmt(t));
