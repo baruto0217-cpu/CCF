@@ -689,7 +689,7 @@
 
   // ── UI update ─────────────────────────────────────
   function updateUI() {
-    const t    = state === 'idle' ? 0 : (now() - startTime);
+    const t    = state === 'idle' ? savedElapsed : (now() - startTime);
     const comp = totalComp  + (isCompressing  && currentSegmentStart ? now() - currentSegmentStart : 0);
     const pause= totalPause + (!isCompressing && currentSegmentStart ? now() - currentSegmentStart : 0);
     const ccf  = t > 0 ? Math.round((comp / t) * 100) : 0;
