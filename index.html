@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>CCF Meter — 胸骨圧迫フラクション測定</title>
+
+  <!-- PWA・画面ロック防止 -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CCF Meter">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -855,16 +861,43 @@
 
   // ── Chart init ────────────────────────────────────
   // ── Screen Wake Lock ──────────────────────────────
-  async function requestWakeLock() {
-    if (!('wakeLock' in navigator)) return;
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => { wakeLock = null; });
-    } catch(e) {}
+  // ── WakeLock（画面ロック・スリープ防止）─────────────
+  // 戦略1: Screen Wake Lock API（Chrome/Android/iOS16.4+）
+  // 戦略2: 透明動画ループ（iOS Safari フォールバック）
+  let noSleepVideo = null;
+
+  function createNoSleepVideo() {
+    // 1x1 透明mp4をbase64でループ再生 → iOS Safariのスリープを防ぐ
+    const v = document.createElement('video');
+    v.setAttribute('playsinline', '');
+    v.setAttribute('muted', '');
+    v.loop = true;
+    v.style.cssText = 'position:fixed;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;';
+    // 最小限の有効なmp4（黒1フレーム）
+    v.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAAAAhmcmVlAAAAG21kYXQAAAGzABAHAAABthADAowdbb9/AAAC6W1vb3YAAABsbXZoZAAAAAAAAAAAAAAAAAAAA+gAAAPoAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAIVdHJhawAAAFx0a2hkAAAAAwAAAAAAAAAAAAAAAQAAAAAAAAPoAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAIAAAACAAAAAABsW1kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAQAAAAEAAVcQAAAAAAC1oZGxyAAAAAAAAAAB2aWRlAAAAAAAAAAAAAAAAVmlkZW9IYW5kbGVyAAAAARBtaW5mAAAAFHZtaGQAAAABAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsIAAAAAEAAADQc3RibAAAAGhzdHNkAAAAAAAAAAEAAABYYXZjMQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAIAAAgASAAAAEgAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABj//wAAADJhdmNDAWQACf/hABpnZAAJrNlAmDPSQAABkAAAAwBAAAAMIPGDGWABAAZo6+PLIsAAAAxidHJ0AAAAAAAAAAAAAAARY3R0cwAAAAAAAAABAAAABAAAAQAAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAQAAAABAAAAFHN0c3oAAAAAAAAAAAAAAAAEAAAAFnN0Y28AAAAAAAAAAQAAADBAAAAbdWR0YQAAABNtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjU3LjU2LjEwMQ==';
+    document.body.appendChild(v);
+    return v;
   }
+
+  async function requestWakeLock() {
+    // 戦略1: Wake Lock API
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+        return;
+      } catch(e) {}
+    }
+    // 戦略2: 透明動画フォールバック（iOS Safari）
+    if (!noSleepVideo) noSleepVideo = createNoSleepVideo();
+    try { await noSleepVideo.play(); } catch(e) {}
+  }
+
   function releaseWakeLock() {
     if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    if (noSleepVideo) { noSleepVideo.pause(); }
   }
+
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') requestWakeLock();
   });
